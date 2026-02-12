@@ -103,11 +103,22 @@ export function Directory({ onSelectBoite }: DirectoryProps) {
               <div className="flex items-center gap-2 text-sm text-gray-600">
                 <MapPin className="w-4 h-4" />
                 <span>
-                  {boite.adresse?.housenumber && `${boite.adresse.housenumber} `}
-                  {boite.adresse?.street && `${boite.adresse.street}, `}
-                  {boite.adresse?.city} ({boite.adresse?.postcode})
+                  {boite.liste_rouge ? (
+                    `${boite.adresse?.city} (${boite.adresse?.postcode})`
+                  ) : (
+                    <>
+                      {boite.adresse?.housenumber && `${boite.adresse.housenumber} `}
+                      {boite.adresse?.street && `${boite.adresse.street}, `}
+                      {boite.adresse?.city} ({boite.adresse?.postcode})
+                    </>
+                  )}
                 </span>
               </div>
+              {boite.liste_rouge && (
+                <div className="mt-2 text-xs text-orange-600 font-medium">
+                  Liste rouge
+                </div>
+              )}
             </button>
           ))}
         </div>

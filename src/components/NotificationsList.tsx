@@ -1,10 +1,14 @@
 import React, { useState, useEffect } from 'react';
-import { Bell, Check, Trash2, User } from 'lucide-react';
+import { Bell, Check, Trash2, User, MessageCircle } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../contexts/AuthContext';
 import type { Notification } from '../lib/types';
 
-export function NotificationsList() {
+interface NotificationsListProps {
+  onReply: (userId: string, userName: string, notificationId: string) => void;
+}
+
+export function NotificationsList({ onReply }: NotificationsListProps) {
   const { user } = useAuth();
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [loading, setLoading] = useState(true);
@@ -22,7 +26,7 @@ export function NotificationsList() {
       .select(`
         *,
         boite_lettre:boites_lettres(nom_affiche),
-        expediteur:profiles(email, telephone)
+        expediteur:profiles(nom_complet, email, telephone)
       `)
       .eq('destinataire_id', user!.id)
       .order('created_at', { ascending: false });
@@ -142,6 +146,15 @@ export function NotificationsList() {
               </div>
             </div>
             <div className="flex gap-2">
+              {notif.expediteur_id && notif.expediteur && (
+                <button
+                  onClick={() => onReply(notif.expediteur_id!, notif.expediteur_nom || 'Visiteur', notif.id)}
+                  className="p-2 text-[#1B4F8A] hover:bg-blue-50 rounded-lg transition"
+                  title="Répondre"
+                >
+                  <MessageCircle className="w-5 h-5" />
+                </button>
+              )}
               {!notif.lu && (
                 <button
                   onClick={() => markAsRead(notif.id)}

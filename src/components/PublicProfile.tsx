@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Bell, MapPin, Circle, Send, ArrowLeft, User as UserIcon } from 'lucide-react';
+import { Bell, MapPin, Circle, Send, ArrowLeft, User as UserIcon, Star } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../contexts/AuthContext';
 import { sendEmailNotification } from '../lib/emailNotifications';
@@ -26,10 +26,15 @@ export function PublicProfile({ boiteId, onBack }: PublicProfileProps) {
   const [partagerEmail, setPartagerEmail] = useState(false);
   const [sending, setSending] = useState(false);
   const [success, setSuccess] = useState('');
+  const [isFavorite, setIsFavorite] = useState(false);
+  const [addingFavorite, setAddingFavorite] = useState(false);
 
   useEffect(() => {
     loadBoite();
-  }, [boiteId]);
+    if (user) {
+      checkIfFavorite();
+    }
+  }, [boiteId, user]);
 
   const loadBoite = async () => {
     const { data, error } = await supabase
@@ -46,6 +51,56 @@ export function PublicProfile({ boiteId, onBack }: PublicProfileProps) {
       setBoite(data as any);
     }
     setLoading(false);
+  };
+
+  const checkIfFavorite = async () => {
+    if (!user || !boite) return;
+
+    const { data } = await supabase
+      .from('contacts')
+      .select('id')
+      .eq('user_id', user.id)
+      .eq('contact_boite_id', boiteId)
+      .maybeSingle();
+
+    setIsFavorite(!!data);
+  };
+
+  const toggleFavorite = async () => {
+    if (!user || !boite) return;
+
+    setAddingFavorite(true);
+    try {
+      if (isFavorite) {
+        const { error } = await supabase
+          .from('contacts')
+          .delete()
+          .eq('user_id', user.id)
+          .eq('contact_boite_id', boiteId);
+
+        if (error) throw error;
+        setIsFavorite(false);
+        setSuccess('Contact retiré de vos favoris');
+      } else {
+        const { error } = await supabase
+          .from('contacts')
+          .insert({
+            user_id: user.id,
+            contact_user_id: boite.user_id,
+            contact_boite_id: boiteId,
+            nom_affiche: boite.nom_affiche,
+          });
+
+        if (error) throw error;
+        setIsFavorite(true);
+        setSuccess('Contact ajouté à vos favoris');
+      }
+      setTimeout(() => setSuccess(''), 3000);
+    } catch (error: any) {
+      alert(error.message || 'Erreur lors de l\'ajout aux favoris');
+    } finally {
+      setAddingFavorite(false);
+    }
   };
 
   const handleRingIntercom = async () => {
@@ -191,14 +246,6 @@ export function PublicProfile({ boiteId, onBack }: PublicProfileProps) {
     );
   }
 
-  const statutConfig = {
-    present: { label: 'Présent', color: 'text-green-600', bgColor: 'bg-green-100' },
-    absent: { label: 'Absent', color: 'text-orange-600', bgColor: 'bg-orange-100' },
-    ne_pas_deranger: { label: 'Ne pas déranger', color: 'text-red-600', bgColor: 'bg-red-100' },
-  };
-
-  const statut = statutConfig[boite.statut];
-
   return (
     <div className="max-w-2xl mx-auto">
       <button
@@ -211,27 +258,57 @@ export function PublicProfile({ boiteId, onBack }: PublicProfileProps) {
 
       <div className="bg-white rounded-xl shadow-lg overflow-hidden">
         <div className="bg-gradient-to-r from-[#1B4F8A] to-[#2563a8] p-8 text-white">
-          <div className="flex items-center gap-4 mb-4">
-            <div className="w-20 h-20 bg-white/20 rounded-full flex items-center justify-center">
-              <UserIcon className="w-10 h-10" />
-            </div>
-            <div>
-              <h1 className="text-3xl font-bold">{boite.nom_affiche}</h1>
-              <div className="flex items-center gap-2 mt-2 text-white/90">
-                <MapPin className="w-4 h-4" />
-                <span>
-                  {boite.adresse?.housenumber && `${boite.adresse.housenumber} `}
-                  {boite.adresse?.street && `${boite.adresse.street}, `}
-                  {boite.adresse?.city} ({boite.adresse?.postcode})
-                </span>
+          <div className="flex items-center justify-between mb-4">
+            <div className="flex items-center gap-4">
+              <div className="w-20 h-20 bg-white/20 rounded-full flex items-center justify-center">
+                <UserIcon className="w-10 h-10" />
+              </div>
+              <div>
+                <h1 className="text-3xl font-bold">
+                  {boite.nom_affiche}
+                  {boite.profile && (
+                    <span className="text-base font-normal text-white/90 block mt-1">
+                      géré par {boite.profile.nom_complet}
+                    </span>
+                  )}
+                </h1>
+                <div className="flex items-center gap-2 mt-2 text-white/90">
+                  <MapPin className="w-4 h-4" />
+                  <span>
+                    {boite.liste_rouge ? (
+                      `${boite.adresse?.city} (${boite.adresse?.postcode})`
+                    ) : (
+                      <>
+                        {boite.adresse?.housenumber && `${boite.adresse.housenumber} `}
+                        {boite.adresse?.street && `${boite.adresse.street}, `}
+                        {boite.adresse?.city} ({boite.adresse?.postcode})
+                      </>
+                    )}
+                  </span>
+                </div>
               </div>
             </div>
+            {user && (
+              <button
+                onClick={toggleFavorite}
+                disabled={addingFavorite}
+                className={`p-3 rounded-full transition ${
+                  isFavorite
+                    ? 'bg-yellow-400 text-yellow-900 hover:bg-yellow-300'
+                    : 'bg-white/20 text-white hover:bg-white/30'
+                }`}
+                title={isFavorite ? 'Retirer des favoris' : 'Ajouter aux favoris'}
+              >
+                <Star className={`w-6 h-6 ${isFavorite ? 'fill-current' : ''}`} />
+              </button>
+            )}
           </div>
 
-          <div className={`inline-flex items-center gap-2 ${statut.bgColor} ${statut.color} px-4 py-2 rounded-full text-sm font-medium`}>
-            <Circle className="w-3 h-3 fill-current" />
-            {statut.label}
-          </div>
+          {boite.liste_rouge && (
+            <div className="bg-orange-500/30 border border-orange-300/50 px-4 py-2 rounded-lg text-sm">
+              Liste rouge - Adresse masquée pour protéger la vie privée
+            </div>
+          )}
         </div>
 
         <div className="p-8">
@@ -244,23 +321,29 @@ export function PublicProfile({ boiteId, onBack }: PublicProfileProps) {
           <div className="space-y-4">
             {!showIntercom && !showContactRequest && (
               <>
-                <button
-                  onClick={() => setShowIntercom(true)}
-                  disabled={boite.statut === 'ne_pas_deranger'}
-                  className="w-full bg-[#1B4F8A] text-white py-4 rounded-lg font-semibold hover:bg-[#153d6e] transition disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-3 text-lg"
-                >
-                  <Bell className="w-6 h-6" />
-                  Sonner l'interphone
-                </button>
+                {!boite.liste_rouge && (
+                  <button
+                    onClick={() => setShowIntercom(true)}
+                    className="w-full bg-[#1B4F8A] text-white py-4 rounded-lg font-semibold hover:bg-[#153d6e] transition flex items-center justify-center gap-3 text-lg"
+                  >
+                    <Bell className="w-6 h-6" />
+                    Sonner l'interphone
+                  </button>
+                )}
 
                 <button
                   onClick={() => setShowContactRequest(true)}
-                  disabled={boite.statut === 'ne_pas_deranger'}
-                  className="w-full bg-white text-[#1B4F8A] border-2 border-[#1B4F8A] py-4 rounded-lg font-semibold hover:bg-gray-50 transition disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-3 text-lg"
+                  className="w-full bg-white text-[#1B4F8A] border-2 border-[#1B4F8A] py-4 rounded-lg font-semibold hover:bg-gray-50 transition flex items-center justify-center gap-3 text-lg"
                 >
                   <Send className="w-6 h-6" />
                   Demander le contact
                 </button>
+
+                {boite.liste_rouge && (
+                  <p className="text-sm text-gray-600 text-center">
+                    L'interphone est désactivé pour ce profil. Vous pouvez envoyer une demande de contact.
+                  </p>
+                )}
               </>
             )}
 
