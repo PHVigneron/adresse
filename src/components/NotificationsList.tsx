@@ -21,7 +21,8 @@ export function NotificationsList() {
       .from('notifications')
       .select(`
         *,
-        boite_lettre:boites_lettres(nom_affiche)
+        boite_lettre:boites_lettres(nom_affiche),
+        expediteur:profiles(email, telephone)
       `)
       .eq('destinataire_id', user!.id)
       .order('created_at', { ascending: false });
@@ -114,6 +115,27 @@ export function NotificationsList() {
                 )}
               </div>
               <p className="text-gray-700 mb-2">{notif.message}</p>
+              {notif.expediteur && (notif.partager_telephone || notif.partager_email) && (
+                <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 mb-2">
+                  <p className="text-sm font-medium text-blue-900 mb-2">Coordonnées partagées :</p>
+                  {notif.partager_email && notif.expediteur?.email && (
+                    <p className="text-sm text-blue-800">
+                      <strong>Email :</strong>{' '}
+                      <a href={`mailto:${notif.expediteur.email}`} className="hover:underline">
+                        {notif.expediteur.email}
+                      </a>
+                    </p>
+                  )}
+                  {notif.partager_telephone && notif.expediteur?.telephone && (
+                    <p className="text-sm text-blue-800">
+                      <strong>Téléphone :</strong>{' '}
+                      <a href={`tel:${notif.expediteur.telephone}`} className="hover:underline">
+                        {notif.expediteur.telephone}
+                      </a>
+                    </p>
+                  )}
+                </div>
+              )}
               <div className="flex items-center gap-4 text-sm text-gray-500">
                 <span>Pour: {notif.boite_lettre?.nom_affiche}</span>
                 <span>{new Date(notif.created_at).toLocaleString('fr-FR')}</span>

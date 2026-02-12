@@ -25,7 +25,7 @@ export function ContactRequestsList() {
         .select(`
           *,
           boite_lettre:boites_lettres(nom_affiche),
-          expediteur:profiles(nom_complet, email)
+          expediteur:profiles(nom_complet, email, telephone)
         `)
         .eq('destinataire_id', user!.id)
         .order('created_at', { ascending: false }),
@@ -154,6 +154,27 @@ export function ContactRequestsList() {
               {isReceived ? 'Pour' : 'À'}: {demande.boite_lettre?.nom_affiche}
             </p>
             <p className="text-gray-700 mb-2">{demande.message}</p>
+            {isReceived && demande.expediteur && (demande.partager_telephone || demande.partager_email) && (
+              <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 mb-2">
+                <p className="text-sm font-medium text-blue-900 mb-2">Coordonnées partagées :</p>
+                {demande.partager_email && demande.expediteur?.email && (
+                  <p className="text-sm text-blue-800">
+                    <strong>Email :</strong>{' '}
+                    <a href={`mailto:${demande.expediteur.email}`} className="hover:underline">
+                      {demande.expediteur.email}
+                    </a>
+                  </p>
+                )}
+                {demande.partager_telephone && demande.expediteur?.telephone && (
+                  <p className="text-sm text-blue-800">
+                    <strong>Téléphone :</strong>{' '}
+                    <a href={`tel:${demande.expediteur.telephone}`} className="hover:underline">
+                      {demande.expediteur.telephone}
+                    </a>
+                  </p>
+                )}
+              </div>
+            )}
             <p className="text-xs text-gray-500">
               {new Date(demande.created_at).toLocaleString('fr-FR')}
             </p>

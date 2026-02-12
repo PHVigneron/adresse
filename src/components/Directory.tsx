@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { Search, MapPin, User as UserIcon } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import type { BoiteLettre } from '../lib/types';
@@ -12,39 +12,45 @@ export function Directory({ onSelectBoite }: DirectoryProps) {
   const [searchQuery, setSearchQuery] = useState('');
   const [loading, setLoading] = useState(false);
 
-  useEffect(() => {
-    if (searchQuery.trim()) {
-      searchBoites();
-    } else {
+  const searchBoites = useCallback(async (query: string) => {
+    if (!query.trim()) {
       setFilteredBoites([]);
       setLoading(false);
+      return;
     }
-  }, [searchQuery]);
 
-  const searchBoites = async () => {
     setLoading(true);
-    const query = searchQuery.toLowerCase();
+    const searchTerm = query.toLowerCase();
 
     const { data, error } = await supabase
       .from('boites_lettres')
       .select(`
         *,
-        adresse:adresses(city, postcode)
+        adresse:adresses(housenumber, street, city, postcode)
       `)
       .eq('visible_annuaire', true)
       .order('created_at', { ascending: false });
 
     if (data) {
       const filtered = (data as any).filter((boite: any) => {
-        const nomMatch = boite.nom_affiche.toLowerCase().includes(query);
-        const cityMatch = boite.adresse?.city.toLowerCase().includes(query);
-        const postcodeMatch = boite.adresse?.postcode.includes(query);
-        return nomMatch || cityMatch || postcodeMatch;
+        const nomMatch = boite.nom_affiche.toLowerCase().includes(searchTerm);
+        const cityMatch = boite.adresse?.city.toLowerCase().includes(searchTerm);
+        const postcodeMatch = boite.adresse?.postcode.includes(searchTerm);
+        const streetMatch = boite.adresse?.street?.toLowerCase().includes(searchTerm);
+        return nomMatch || cityMatch || postcodeMatch || streetMatch;
       });
       setFilteredBoites(filtered);
     }
     setLoading(false);
-  };
+  }, []);
+
+  useEffect(() => {
+    const timeoutId = setTimeout(() => {
+      searchBoites(searchQuery);
+    }, 300);
+
+    return () => clearTimeout(timeoutId);
+  }, [searchQuery, searchBoites]);
 
   if (loading) {
     return (
@@ -97,6 +103,8 @@ export function Directory({ onSelectBoite }: DirectoryProps) {
               <div className="flex items-center gap-2 text-sm text-gray-600">
                 <MapPin className="w-4 h-4" />
                 <span>
+                  {boite.adresse?.housenumber && `${boite.adresse.housenumber} `}
+                  {boite.adresse?.street && `${boite.adresse.street}, `}
                   {boite.adresse?.city} ({boite.adresse?.postcode})
                 </span>
               </div>

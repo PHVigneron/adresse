@@ -13,7 +13,7 @@ interface PublicProfileProps {
 export function PublicProfile({ boiteId, onBack }: PublicProfileProps) {
   const { user, profile } = useAuth();
   const [boite, setBoite] = useState<BoiteLettre & {
-    adresse?: { city: string; postcode: string };
+    adresse?: { housenumber?: string; street?: string; city: string; postcode: string };
     profile?: { nom_complet: string };
   } | null>(null);
   const [loading, setLoading] = useState(true);
@@ -22,6 +22,8 @@ export function PublicProfile({ boiteId, onBack }: PublicProfileProps) {
   const [intercomMessage, setIntercomMessage] = useState('');
   const [contactMessage, setContactMessage] = useState('');
   const [senderName, setSenderName] = useState('');
+  const [partagerTelephone, setPartagerTelephone] = useState(false);
+  const [partagerEmail, setPartagerEmail] = useState(false);
   const [sending, setSending] = useState(false);
   const [success, setSuccess] = useState('');
 
@@ -34,7 +36,7 @@ export function PublicProfile({ boiteId, onBack }: PublicProfileProps) {
       .from('boites_lettres')
       .select(`
         *,
-        adresse:adresses(city, postcode),
+        adresse:adresses(housenumber, street, city, postcode),
         profile:profiles(nom_complet)
       `)
       .eq('id', boiteId)
@@ -56,27 +58,42 @@ export function PublicProfile({ boiteId, onBack }: PublicProfileProps) {
         .insert({
           destinataire_id: boite!.user_id,
           boite_lettre_id: boiteId,
+          expediteur_id: user?.id || null,
           expediteur_nom: user ? profile?.nom_complet : senderName,
           message: intercomMessage,
+          partager_telephone: user && partagerTelephone,
+          partager_email: user && partagerEmail,
         });
 
       if (error) throw error;
 
       const { data: recipientProfile } = await supabase
         .from('profiles')
-        .select('email')
+        .select('email, email_notifications_enabled, telephone')
         .eq('id', boite!.user_id)
         .maybeSingle();
 
-      if (recipientProfile?.email) {
+      if (recipientProfile?.email && recipientProfile?.email_notifications_enabled) {
         const expediteurNom = user ? profile?.nom_complet : senderName;
+        let contactInfo = '';
+
+        if (user && partagerTelephone && profile?.telephone) {
+          contactInfo += `<p><strong>Téléphone:</strong> ${profile.telephone}</p>`;
+        }
+
+        if (user && partagerEmail && profile?.email) {
+          contactInfo += `<p><strong>Email:</strong> ${profile.email}</p>`;
+        }
+
         await sendEmailNotification({
           to: recipientProfile.email,
           subject: 'Sonnerie d\'interphone - MonAdresse',
           html: `<h2>Quelqu'un sonne à votre interphone</h2>
                  <p><strong>${expediteurNom || 'Un visiteur'}</strong> a sonné à votre boîte aux lettres <strong>${boite!.nom_affiche}</strong>.</p>
                  <p><strong>Message:</strong></p>
-                 <p>${intercomMessage}</p>`,
+                 <p>${intercomMessage}</p>
+                 ${contactInfo ? '<hr>' + contactInfo : ''}
+                 ${!contactInfo ? '<p style="color: #666; font-size: 14px;">Le visiteur n\'a pas partagé ses coordonnées.</p>' : ''}`,
           type: 'notification',
         });
       }
@@ -85,6 +102,8 @@ export function PublicProfile({ boiteId, onBack }: PublicProfileProps) {
       setShowIntercom(false);
       setIntercomMessage('');
       setSenderName('');
+      setPartagerTelephone(false);
+      setPartagerEmail(false);
     } catch (err: any) {
       alert(err.message || 'Erreur lors de l\'envoi');
     } finally {
@@ -105,18 +124,30 @@ export function PublicProfile({ boiteId, onBack }: PublicProfileProps) {
           destinataire_id: boite!.user_id,
           boite_lettre_id: boiteId,
           message: contactMessage,
+          partager_telephone: user && partagerTelephone,
+          partager_email: user && partagerEmail,
         });
 
       if (error) throw error;
 
       const { data: recipientProfile } = await supabase
         .from('profiles')
-        .select('email')
+        .select('email, email_notifications_enabled')
         .eq('id', boite!.user_id)
         .maybeSingle();
 
-      if (recipientProfile?.email) {
+      if (recipientProfile?.email && recipientProfile?.email_notifications_enabled) {
         const expediteurNom = user ? profile?.nom_complet : senderName;
+        let contactInfo = '';
+
+        if (user && partagerTelephone && profile?.telephone) {
+          contactInfo += `<p><strong>Téléphone:</strong> ${profile.telephone}</p>`;
+        }
+
+        if (user && partagerEmail && profile?.email) {
+          contactInfo += `<p><strong>Email:</strong> ${profile.email}</p>`;
+        }
+
         await sendEmailNotification({
           to: recipientProfile.email,
           subject: 'Nouvelle demande de contact - MonAdresse',
@@ -124,6 +155,8 @@ export function PublicProfile({ boiteId, onBack }: PublicProfileProps) {
                  <p><strong>${expediteurNom || 'Un visiteur'}</strong> souhaite vous contacter concernant votre boîte aux lettres <strong>${boite!.nom_affiche}</strong>.</p>
                  <p><strong>Message:</strong></p>
                  <p>${contactMessage}</p>
+                 ${contactInfo ? '<hr>' + contactInfo : ''}
+                 ${!contactInfo ? '<p style="color: #666; font-size: 14px;">Le visiteur n\'a pas partagé ses coordonnées.</p>' : ''}
                  <p>Connectez-vous à MonAdresse pour répondre à cette demande.</p>`,
           type: 'contact_request',
         });
@@ -133,6 +166,8 @@ export function PublicProfile({ boiteId, onBack }: PublicProfileProps) {
       setShowContactRequest(false);
       setContactMessage('');
       setSenderName('');
+      setPartagerTelephone(false);
+      setPartagerEmail(false);
     } catch (err: any) {
       alert(err.message || 'Erreur lors de l\'envoi');
     } finally {
@@ -185,6 +220,8 @@ export function PublicProfile({ boiteId, onBack }: PublicProfileProps) {
               <div className="flex items-center gap-2 mt-2 text-white/90">
                 <MapPin className="w-4 h-4" />
                 <span>
+                  {boite.adresse?.housenumber && `${boite.adresse.housenumber} `}
+                  {boite.adresse?.street && `${boite.adresse.street}, `}
                   {boite.adresse?.city} ({boite.adresse?.postcode})
                 </span>
               </div>
@@ -250,12 +287,49 @@ export function PublicProfile({ boiteId, onBack }: PublicProfileProps) {
                   rows={3}
                   required
                 />
+                {user && (
+                  <div className="bg-gray-50 p-4 rounded-lg space-y-3 border border-gray-200">
+                    <p className="text-sm font-medium text-gray-900">
+                      Partager mes coordonnées (optionnel)
+                    </p>
+                    {profile?.telephone && (
+                      <label className="flex items-start gap-3 cursor-pointer">
+                        <input
+                          type="checkbox"
+                          checked={partagerTelephone}
+                          onChange={(e) => setPartagerTelephone(e.target.checked)}
+                          className="mt-1 w-4 h-4 text-[#1B4F8A] border-gray-300 rounded focus:ring-[#1B4F8A]"
+                        />
+                        <div className="flex-1">
+                          <p className="text-sm text-gray-900">Partager mon téléphone</p>
+                          <p className="text-xs text-gray-600">{profile.telephone}</p>
+                        </div>
+                      </label>
+                    )}
+                    {profile?.email && (
+                      <label className="flex items-start gap-3 cursor-pointer">
+                        <input
+                          type="checkbox"
+                          checked={partagerEmail}
+                          onChange={(e) => setPartagerEmail(e.target.checked)}
+                          className="mt-1 w-4 h-4 text-[#1B4F8A] border-gray-300 rounded focus:ring-[#1B4F8A]"
+                        />
+                        <div className="flex-1">
+                          <p className="text-sm text-gray-900">Partager mon email</p>
+                          <p className="text-xs text-gray-600">{profile.email}</p>
+                        </div>
+                      </label>
+                    )}
+                  </div>
+                )}
                 <div className="flex gap-3">
                   <button
                     onClick={() => {
                       setShowIntercom(false);
                       setIntercomMessage('');
                       setSenderName('');
+                      setPartagerTelephone(false);
+                      setPartagerEmail(false);
                     }}
                     className="flex-1 px-4 py-3 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition"
                   >
@@ -298,12 +372,49 @@ export function PublicProfile({ boiteId, onBack }: PublicProfileProps) {
                   rows={4}
                   required
                 />
+                {user && (
+                  <div className="bg-gray-50 p-4 rounded-lg space-y-3 border border-gray-200">
+                    <p className="text-sm font-medium text-gray-900">
+                      Partager mes coordonnées (optionnel)
+                    </p>
+                    {profile?.telephone && (
+                      <label className="flex items-start gap-3 cursor-pointer">
+                        <input
+                          type="checkbox"
+                          checked={partagerTelephone}
+                          onChange={(e) => setPartagerTelephone(e.target.checked)}
+                          className="mt-1 w-4 h-4 text-[#1B4F8A] border-gray-300 rounded focus:ring-[#1B4F8A]"
+                        />
+                        <div className="flex-1">
+                          <p className="text-sm text-gray-900">Partager mon téléphone</p>
+                          <p className="text-xs text-gray-600">{profile.telephone}</p>
+                        </div>
+                      </label>
+                    )}
+                    {profile?.email && (
+                      <label className="flex items-start gap-3 cursor-pointer">
+                        <input
+                          type="checkbox"
+                          checked={partagerEmail}
+                          onChange={(e) => setPartagerEmail(e.target.checked)}
+                          className="mt-1 w-4 h-4 text-[#1B4F8A] border-gray-300 rounded focus:ring-[#1B4F8A]"
+                        />
+                        <div className="flex-1">
+                          <p className="text-sm text-gray-900">Partager mon email</p>
+                          <p className="text-xs text-gray-600">{profile.email}</p>
+                        </div>
+                      </label>
+                    )}
+                  </div>
+                )}
                 <div className="flex gap-3">
                   <button
                     onClick={() => {
                       setShowContactRequest(false);
                       setContactMessage('');
                       setSenderName('');
+                      setPartagerTelephone(false);
+                      setPartagerEmail(false);
                     }}
                     className="flex-1 px-4 py-3 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition"
                   >

@@ -29,24 +29,40 @@ export function Dashboard() {
   }, [isPasswordRecovery]);
 
   useEffect(() => {
-    loadBoites();
-    loadUnreadCounts();
-  }, []);
+    if (profile?.id) {
+      loadBoites();
+      loadUnreadCounts();
+    } else {
+      setLoading(false);
+    }
+  }, [profile?.id]);
 
   const loadBoites = async () => {
-    const { data } = await supabase
-      .from('boites_lettres')
-      .select(`
-        *,
-        adresse:adresses(city, postcode)
-      `)
-      .eq('user_id', profile!.id)
-      .order('created_at', { ascending: false });
-
-    if (data) {
-      setBoites(data as any);
+    if (!profile?.id) {
+      setLoading(false);
+      return;
     }
-    setLoading(false);
+
+    try {
+      const { data, error } = await supabase
+        .from('boites_lettres')
+        .select(`
+          *,
+          adresse:adresses(housenumber, street, city, postcode)
+        `)
+        .eq('user_id', profile.id)
+        .order('created_at', { ascending: false });
+
+      if (error) throw error;
+
+      if (data) {
+        setBoites(data as any);
+      }
+    } catch (error) {
+      console.error('Error loading boites:', error);
+    } finally {
+      setLoading(false);
+    }
   };
 
   const loadUnreadCounts = async () => {
@@ -222,6 +238,8 @@ export function Dashboard() {
                           </h3>
                           <p className="text-gray-600 flex items-center gap-1 mt-1">
                             <Circle className="w-3 h-3" />
+                            {boite.adresse?.housenumber && `${boite.adresse.housenumber} `}
+                            {boite.adresse?.street && `${boite.adresse.street}, `}
                             {boite.adresse?.city} ({boite.adresse?.postcode})
                           </p>
                         </div>

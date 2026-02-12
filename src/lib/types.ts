@@ -9,6 +9,7 @@ export type Database = {
           nom: string;
           nom_complet: string;
           telephone: string | null;
+          email_notifications_enabled: boolean;
           created_at: string;
           updated_at: string;
         };
@@ -18,6 +19,7 @@ export type Database = {
           prenom: string;
           nom: string;
           telephone?: string | null;
+          email_notifications_enabled?: boolean;
           created_at?: string;
           updated_at?: string;
         };
@@ -27,6 +29,7 @@ export type Database = {
           prenom?: string;
           nom?: string;
           telephone?: string | null;
+          email_notifications_enabled?: boolean;
           created_at?: string;
           updated_at?: string;
         };
@@ -109,27 +112,36 @@ export type Database = {
           id: string;
           destinataire_id: string;
           boite_lettre_id: string;
+          expediteur_id: string | null;
           expediteur_nom: string | null;
           message: string;
           lu: boolean;
+          partager_telephone: boolean;
+          partager_email: boolean;
           created_at: string;
         };
         Insert: {
           id?: string;
           destinataire_id: string;
           boite_lettre_id: string;
+          expediteur_id?: string | null;
           expediteur_nom?: string | null;
           message: string;
           lu?: boolean;
+          partager_telephone?: boolean;
+          partager_email?: boolean;
           created_at?: string;
         };
         Update: {
           id?: string;
           destinataire_id?: string;
           boite_lettre_id?: string;
+          expediteur_id?: string | null;
           expediteur_nom?: string | null;
           message?: string;
           lu?: boolean;
+          partager_telephone?: boolean;
+          partager_email?: boolean;
           created_at?: string;
         };
       };
@@ -142,6 +154,8 @@ export type Database = {
           boite_lettre_id: string;
           message: string;
           statut: 'en_attente' | 'acceptee' | 'refusee';
+          partager_telephone: boolean;
+          partager_email: boolean;
           created_at: string;
           updated_at: string;
         };
@@ -153,6 +167,8 @@ export type Database = {
           boite_lettre_id: string;
           message: string;
           statut?: 'en_attente' | 'acceptee' | 'refusee';
+          partager_telephone?: boolean;
+          partager_email?: boolean;
           created_at?: string;
           updated_at?: string;
         };
@@ -164,6 +180,8 @@ export type Database = {
           boite_lettre_id?: string;
           message?: string;
           statut?: 'en_attente' | 'acceptee' | 'refusee';
+          partager_telephone?: boolean;
+          partager_email?: boolean;
           created_at?: string;
           updated_at?: string;
         };
@@ -195,6 +213,7 @@ export interface Profile {
   nom: string;
   nom_complet: string;
   telephone: string | null;
+  email_notifications_enabled: boolean;
 }
 
 export interface BoiteLettre {
@@ -214,12 +233,19 @@ export interface Notification {
   id: string;
   destinataire_id: string;
   boite_lettre_id: string;
+  expediteur_id: string | null;
   expediteur_nom: string | null;
   message: string;
   lu: boolean;
+  partager_telephone: boolean;
+  partager_email: boolean;
   created_at: string;
   boite_lettre?: {
     nom_affiche: string;
+  };
+  expediteur?: {
+    email: string;
+    telephone: string | null;
   };
 }
 
@@ -231,6 +257,8 @@ export interface DemandeContact {
   boite_lettre_id: string;
   message: string;
   statut: 'en_attente' | 'acceptee' | 'refusee';
+  partager_telephone: boolean;
+  partager_email: boolean;
   created_at: string;
   boite_lettre?: {
     nom_affiche: string;
@@ -238,5 +266,6 @@ export interface DemandeContact {
   expediteur?: {
     nom_complet: string;
     email: string;
+    telephone: string | null;
   };
 }

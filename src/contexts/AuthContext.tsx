@@ -13,7 +13,7 @@ interface AuthContextType {
   signOut: () => Promise<void>;
   resetPassword: (email: string) => Promise<void>;
   updatePassword: (newPassword: string) => Promise<void>;
-  updateProfile: (prenom: string, nom: string, telephone?: string) => Promise<void>;
+  updateProfile: (prenom: string, nom: string, telephone?: string, emailNotificationsEnabled?: boolean) => Promise<void>;
   deleteAccount: () => Promise<void>;
   refreshProfile: () => Promise<void>;
   clearPasswordRecovery: () => void;
@@ -133,19 +133,25 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     if (error) throw error;
   };
 
-  const updateProfile = async (prenom: string, nom: string, telephone?: string) => {
+  const updateProfile = async (prenom: string, nom: string, telephone?: string, emailNotificationsEnabled?: boolean) => {
     if (!user) throw new Error('Aucun utilisateur connecté');
 
     const nom_complet = `${prenom} ${nom}`.trim();
 
+    const updateData: any = {
+      prenom,
+      nom,
+      nom_complet,
+      telephone: telephone || null,
+    };
+
+    if (emailNotificationsEnabled !== undefined) {
+      updateData.email_notifications_enabled = emailNotificationsEnabled;
+    }
+
     const { error } = await supabase
       .from('profiles')
-      .update({
-        prenom,
-        nom,
-        nom_complet,
-        telephone: telephone || null,
-      })
+      .update(updateData)
       .eq('id', user.id);
 
     if (error) throw error;

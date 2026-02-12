@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Trash2, AlertTriangle, User, Mail, Phone, Lock, Save, Eye, EyeOff } from 'lucide-react';
+import { Trash2, AlertTriangle, User, Mail, Phone, Lock, Save, Eye, EyeOff, Bell } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { supabase } from '../lib/supabase';
 
@@ -10,6 +10,7 @@ export function AccountSettings() {
   const [prenom, setPrenom] = useState('');
   const [nom, setNom] = useState('');
   const [telephone, setTelephone] = useState('');
+  const [emailNotificationsEnabled, setEmailNotificationsEnabled] = useState(true);
   const [savingProfile, setSavingProfile] = useState(false);
   const [profileMessage, setProfileMessage] = useState<{ type: 'success' | 'error', text: string } | null>(null);
 
@@ -32,6 +33,7 @@ export function AccountSettings() {
       setPrenom(profile.prenom || '');
       setNom(profile.nom || '');
       setTelephone(profile.telephone || '');
+      setEmailNotificationsEnabled(profile.email_notifications_enabled ?? true);
     }
   }, [profile]);
 
@@ -46,7 +48,7 @@ export function AccountSettings() {
     setProfileMessage(null);
 
     try {
-      await updateProfile(prenom, nom, telephone);
+      await updateProfile(prenom, nom, telephone, emailNotificationsEnabled);
       setProfileMessage({ type: 'success', text: 'Informations mises à jour avec succès' });
       setIsEditingProfile(false);
       setTimeout(() => setProfileMessage(null), 3000);
@@ -63,6 +65,7 @@ export function AccountSettings() {
       setPrenom(profile.prenom || '');
       setNom(profile.nom || '');
       setTelephone(profile.telephone || '');
+      setEmailNotificationsEnabled(profile.email_notifications_enabled ?? true);
     }
     setProfileMessage(null);
   };
@@ -187,6 +190,16 @@ export function AccountSettings() {
               </div>
             )}
 
+            <div className="flex items-start gap-3">
+              <Bell className="w-5 h-5 text-gray-400 mt-0.5" />
+              <div>
+                <p className="text-sm text-gray-600">Notifications par email</p>
+                <p className="font-medium text-gray-900">
+                  {emailNotificationsEnabled ? 'Activées' : 'Désactivées'}
+                </p>
+              </div>
+            </div>
+
             {profileMessage && (
               <div className={`px-4 py-3 rounded-lg text-sm ${
                 profileMessage.type === 'success'
@@ -250,6 +263,27 @@ export function AccountSettings() {
                 onChange={(e) => setTelephone(e.target.value)}
                 className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#1B4F8A] focus:border-transparent outline-none"
               />
+            </div>
+
+            <div className="flex items-start gap-3 bg-gray-50 p-4 rounded-lg border border-gray-200">
+              <input
+                type="checkbox"
+                id="emailNotifications"
+                checked={emailNotificationsEnabled}
+                onChange={(e) => setEmailNotificationsEnabled(e.target.checked)}
+                className="mt-1 w-4 h-4 text-[#1B4F8A] border-gray-300 rounded focus:ring-[#1B4F8A]"
+              />
+              <label htmlFor="emailNotifications" className="flex-1 cursor-pointer">
+                <div className="flex items-center gap-2 mb-1">
+                  <Bell className="w-4 h-4 text-gray-700" />
+                  <span className="text-sm font-medium text-gray-900">
+                    Recevoir les notifications par email
+                  </span>
+                </div>
+                <p className="text-xs text-gray-600">
+                  Si décochée, vous recevrez uniquement les notifications dans l'application
+                </p>
+              </label>
             </div>
 
             {profileMessage && (
